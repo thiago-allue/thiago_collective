@@ -33,10 +33,13 @@ from hyke.scheduled.service.nps_surveys import (
 )
 
 
+# Model for tracking progress status
 class ProgressStatus(models.Model):
+    # Status choices
     PENDING = "pending"
     COMPLETED = "completed"
 
+    # Fields
     email = models.CharField(max_length=100, default="---")
     llcformationstatus = models.CharField(max_length=50, default="---")
     postformationstatus = models.CharField(max_length=50, default="---")
@@ -64,6 +67,7 @@ class ProgressStatus(models.Model):
         return "%s - %s" % (self.id, self.email)
 
 
+# Model for tracking status engine
 class StatusEngine(models.Model):
     FAILED = -4
     SECOND_RETRY = -3
@@ -83,6 +87,7 @@ class StatusEngine(models.Model):
         (FAILED, "Gave up retrying due to multiple failures"),
     ]
 
+    # Fields
     email = models.CharField(max_length=50, blank=True)
     process = models.CharField(max_length=100)
     formationtype = models.CharField(max_length=20, default="---")
@@ -108,6 +113,7 @@ from structlog import get_logger
 logger = get_logger(__name__)
 
 
+# Function to handle scheduled system tasks
 def scheduled_system():
     print("Scheduled task is started for Hyke System...")
 
@@ -118,12 +124,12 @@ def scheduled_system():
     db.close_old_connections()
 
     for item in items:
+        # Handling different processes based on process and outcome conditions
         if item.process == "Client Onboarding Survey" and item.processstate == 1 and item.outcome == -1:
             try:
                 send_client_onboarding_survey(email=item.email)
             except Exception as e:
                 logger.exception(f"Can't process Onboarding NPS Survey for status engine id={item.id}")
-
         elif item.process == "Payment error email" and item.processstate == 1 and item.outcome == -1:
             send_transactional_email(
                 email=item.email, template="[Action required] - Please update your payment information",
@@ -264,11 +270,9 @@ def scheduled_system():
                 process="Kickoff Call Cancelled",
             )
 
-        elif (
-                item.process == "Transition Plan Submitted"
-                and item.processstate == 1
-                and item.outcome == StatusEngine.SCHEDULED
-        ):
+        elif item.process == "Transition Plan Submitted" and item.processstate == 1 \
+                and item.outcome == StatusEngine.SCHEDULED:
+
             progress_status = ProgressStatus.objects.get(email__iexact=item.email)
             progress_status.questionnairestatus = "submitted"
             progress_status.save()
